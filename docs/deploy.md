@@ -5,17 +5,15 @@ Read this before deploying, or before touching the PWA setup, the service worker
 ## Frontend: GitHub Pages
 
 `.github/workflows/pages.yml` runs on every push to `main`, or by hand (Actions → "Deploy to GitHub Pages" →
-Run workflow). It checks the backend and
-frontend, builds with `BASE_PATH=/<repo>/`, and publishes `frontend/dist`.
+Run workflow). It checks the backend and frontend, builds with `BASE_PATH=/<repo>/`, and force-pushes
+`frontend/dist` to the `gh-pages` branch, which GitHub Pages serves (Settings → Pages → Source: Deploy from a
+branch, `gh-pages`, root). The repository must be public on a free GitHub plan.
 
-One-time setup in the GitHub repository:
+Optional: Settings → Secrets and variables → Actions → Variables → `NUDGE_SERVER_URL` = your API's URL. It
+becomes the default server in the app; users can still change it in Settings.
 
-1. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
-2. Optional: Settings → Secrets and variables → Actions → Variables → `NUDGE_SERVER_URL` = your API's URL. It
-   becomes the default server in the app; users can still change it in Settings.
-
-The app is then at `https://<user>.github.io/<repo>/`. GitHub Pages serves HTTPS, which service workers, push
-and "install" all require.
+The app is at `https://<user>.github.io/<repo>/`. GitHub Pages serves HTTPS, which service workers, push and
+"install" all require.
 
 ## Backend: any container host
 
