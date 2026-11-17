@@ -13,8 +13,9 @@ const join = (...parts: string[]) => parts.map((p) => p.trim()).filter(Boolean).
 function statusText(voice: VoiceState, isPending: boolean, isAiOn: boolean): string {
   if (isPending) return isAiOn ? 'Reading your note…' : 'Saving…';
   if (voice.status === 'starting') return 'Opening the microphone…';
-  if (voice.status === 'listening') return voice.canTranscribe ? 'Listening. Tap the orb when you’re done.' : 'Listening, but this browser can’t transcribe. Type instead.';
+  // A transcription problem shows even while listening, so silence on screen never hides a failure.
   if (voice.error) return voice.error;
+  if (voice.status === 'listening') return voice.canTranscribe ? 'Listening. Tap the orb when you’re done.' : 'Listening, but this browser can’t transcribe. Type instead.';
   if (voice.stoppedBecause === 'silence') return `Stopped listening: ${SILENCE_LIMIT_S} seconds of silence`;
   if (voice.stoppedBecause === 'background') return 'Stopped listening when you left the app';
   if (voice.stoppedBecause === 'limit') return `Stopped listening after ${SESSION_LIMIT_S / 60} minutes`;

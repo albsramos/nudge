@@ -52,17 +52,19 @@ const RecognitionCtor: (new () => Recognition) | undefined =
 
 const listeners = new Set<() => void>();
 let state: VoiceState = { status: 'idle', transcript: '', interim: '', canTranscribe: Boolean(RecognitionCtor) };
+/** The sound analyser for the orb. */
+type Mic = { stream: MediaStream; audio: AudioContext; analyser: AnalyserNode; bins: Uint8Array<ArrayBuffer>; wave: Uint8Array<ArrayBuffer> };
+
 let session:
   | {
-      stream: MediaStream;
-      audio: AudioContext;
-      analyser: AnalyserNode;
-      bins: Uint8Array<ArrayBuffer>;
-      wave: Uint8Array<ArrayBuffer>;
+      /** Absent when the browser can't share the mic between speech recognition and the analyser. */
+      mic?: Mic;
       recognition?: Recognition;
       watchdog: ReturnType<typeof setInterval>;
     }
   | undefined;
+/** Recognition started by the tap, before the session exists (the mic is still opening). */
+let pendingRecognition: Recognition | undefined;
 
 /** The live status: it can change while startVoice() awaits the mic, which a plain read can't see. */
 const currentStatus = (): VoiceStatus => state.status;
@@ -87,10 +89,15 @@ export function isVoiceSupported(): boolean {
   return typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
 }
 
-/** Starts listening. Call from a tap: browsers only allow the microphone from a user gesture. */
+/**
+ * Starts listening. Call it straight from a tap: Safari only starts speech recognition inside the tap itself,
+ * so recognition starts first, synchronously, and the mic for the orb opens after.
+ */
 export async function startVoice(): Promise<void> {
   if (session || state.status === 'starting') return;
   set({ status: 'starting', transcript: '', interim: '', error: undefined, stoppedBecause: undefined });
+  pendingRecognition = startRecognition();
+  let mic: Mic | undefined;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     const audio = new AudioContext();
@@ -99,37 +106,54 @@ export async function startVoice(): Promise<void> {
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.6;
     audio.createMediaStreamSource(stream).connect(analyser);
-    // Cancelled while the mic was opening (Stop tapped, or the app left during the permission prompt): release it.
-    if (currentStatus() !== 'starting' || document.visibilityState === 'hidden') {
-      for (const track of stream.getTracks()) track.stop();
-      void audio.close();
-      if (currentStatus() === 'starting') set({ status: 'idle', stoppedBecause: 'background' });
+    mic = { stream, audio, analyser, bins: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)), wave: new Uint8Array(new ArrayBuffer(analyser.fftSize)) };
+  } catch (error) {
+    const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+    // Without the analyser, transcription alone still works; without either, there's nothing to do.
+    if (denied || !pendingRecognition) {
+      pendingRecognition?.stop();
+      pendingRecognition = undefined;
+      set({ status: 'error', error: denied ? 'Microphone access is blocked. Allow it in Settings → Safari → Microphone.' : 'Couldn’t start the microphone.' });
       return;
     }
-    const startedAt = Date.now();
-    let lastHeardAt = startedAt;
-    session = {
-      stream,
-      audio,
-      analyser,
-      bins: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)),
-      wave: new Uint8Array(new ArrayBuffer(analyser.fftSize)),
-      // Checks four times a second, separately from the orb, so the limits hold even if nothing is drawing.
-      watchdog: setInterval(() => {
-        const now = Date.now();
-        if (readVoice().level > 0.06) lastHeardAt = now;
-        if (now - startedAt > SESSION_LIMIT_S * 1000) stopVoice('limit');
-        else if (now - lastHeardAt > SILENCE_LIMIT_S * 1000) stopVoice('silence');
-      }, 250),
-    };
-    session.recognition = startRecognition();
-    set({ status: 'listening' });
-  } catch (error) {
-    stopVoice();
-    const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
-    set({ status: 'error', error: denied ? 'Microphone access is blocked. Allow it in your browser settings.' : 'Couldn’t start the microphone.' });
   }
+  const recognition = pendingRecognition;
+  pendingRecognition = undefined;
+  // Cancelled while the mic was opening (Stop tapped, or the app left during the permission prompt): release it.
+  if (currentStatus() !== 'starting' || document.visibilityState === 'hidden') {
+    releaseMic(mic);
+    recognition?.stop();
+    if (currentStatus() === 'starting') set({ status: 'idle', stoppedBecause: 'background' });
+    return;
+  }
+  const startedAt = Date.now();
+  let lastHeardAt = startedAt;
+  session = {
+    mic,
+    recognition,
+    // Checks four times a second, separately from the orb, so the limits hold even if nothing is drawing.
+    watchdog: setInterval(() => {
+      const now = Date.now();
+      if (readVoice().level > 0.06) lastHeardAt = now;
+      if (now - startedAt > SESSION_LIMIT_S * 1000) stopVoice('limit');
+      else if (now - lastHeardAt > SILENCE_LIMIT_S * 1000) stopVoice('silence');
+    }, 250),
+  };
+  set({ status: 'listening' });
 }
+
+function releaseMic(mic: Mic | undefined) {
+  if (!mic) return;
+  for (const track of mic.stream.getTracks()) track.stop();
+  void mic.audio.close();
+}
+
+const recognitionErrors: Record<string, string> = {
+  'not-allowed': 'This phone won’t let Nudge transcribe. Tap the 🎤 on your keyboard to dictate instead.',
+  'service-not-allowed': 'This phone won’t let Nudge transcribe. Tap the 🎤 on your keyboard to dictate instead.',
+  network: 'Speech-to-text needs an internet connection.',
+  'language-not-supported': 'Speech-to-text doesn’t support your phone’s language here.',
+};
 
 function startRecognition(): Recognition | undefined {
   if (!RecognitionCtor) return undefined;
@@ -145,25 +169,32 @@ function startRecognition(): Recognition | undefined {
       if (result.isFinal) finals += result[0].transcript;
       else interim += result[0].transcript;
     }
-    set({ transcript: join(state.transcript, finals), interim: interim.trim() });
+    feedWords(interim.length > state.interim.length ? interim.slice(state.interim.length) : finals);
+    set({ transcript: join(state.transcript, finals), interim: interim.trim(), error: undefined });
   };
   rec.onerror = (event) => {
     if (event.error === 'no-speech' || event.error === 'aborted') return;
-    set({ error: event.error === 'not-allowed' ? 'Speech recognition is blocked in this browser.' : 'Couldn’t transcribe. Keep talking or type instead.' });
+    // The orb's analyser holds the mic and this browser won't share it: give the mic to transcription.
+    if (event.error === 'audio-capture' && session?.mic) {
+      releaseMic(session.mic);
+      session.mic = undefined;
+      return;
+    }
+    set({ error: recognitionErrors[event.error] ?? 'Couldn’t transcribe. Keep talking or type instead.' });
   };
-  // Some browsers end recognition after a pause: keep it going while the mic is open.
+  // Browsers end recognition after a pause: keep it going while listening.
   rec.onend = () => {
-    if (session?.recognition === rec) {
-      try {
-        rec.start();
-      } catch {
-        // Already restarting.
-      }
+    if (session?.recognition !== rec) return;
+    try {
+      rec.start();
+    } catch {
+      // Already restarting, or the browser won't restart without a tap: the status line says so if it errors.
     }
   };
   try {
     rec.start();
   } catch {
+    set({ error: recognitionErrors['service-not-allowed'] });
     return undefined;
   }
   return rec;
@@ -173,11 +204,12 @@ function startRecognition(): Recognition | undefined {
 export function stopVoice(reason?: StopReason): string {
   const current = session;
   session = undefined;
+  pendingRecognition?.stop();
+  pendingRecognition = undefined;
   if (current) {
     clearInterval(current.watchdog);
     current.recognition?.stop();
-    for (const track of current.stream.getTracks()) track.stop();
-    void current.audio.close();
+    releaseMic(current.mic);
   }
   const heard = join(state.transcript, state.interim);
   set({ status: state.status === 'error' ? 'error' : 'idle', transcript: heard, interim: '', stoppedBecause: current ? reason : state.stoppedBecause });
@@ -201,10 +233,40 @@ export function clearVoice() {
 
 const silent: VoiceFrame = { level: 0, bands: new Array(BANDS).fill(0), pitch: 0.5, vowel: silentVowel };
 
+// Without the analyser, the orb reacts to words as they're recognised: each letter adds energy that fades.
+// Open vowels go low, e/i in the middle, hissing consonants high, a rough stand-in for their sound.
+const words = { bands: new Array<number>(BANDS).fill(0), level: 0, at: 0 };
+
+function feedWords(text: string) {
+  decayWords();
+  for (const ch of text.toLowerCase()) {
+    const band = 'aou'.includes(ch) ? 1 : 'ei'.includes(ch) ? 3 : 'sztfcxkh'.includes(ch) ? 6 : /\p{L}/u.test(ch) ? 4 : -1;
+    if (band < 0) continue;
+    words.bands[band] = Math.min(1, words.bands[band] + 0.3);
+    words.bands[band + 1] = Math.min(1, words.bands[band + 1] + 0.15);
+    words.level = Math.min(1, words.level + 0.08);
+  }
+}
+
+function decayWords() {
+  const now = Date.now();
+  const k = Math.exp(-(now - words.at) / 330);
+  words.at = now;
+  words.level *= k;
+  for (let b = 0; b < BANDS; b++) words.bands[b] *= k;
+}
+
 /** The microphone right now. Cheap enough to call every animation frame. */
 export function readVoice(): VoiceFrame {
   if (!session) return silent;
-  const { analyser, bins, wave, audio } = session;
+  if (!session.mic) {
+    decayWords();
+    let w = 0;
+    let t = 0;
+    words.bands.forEach((e, b) => ((w += e * (b + 0.5)), (t += e)));
+    return { level: words.level, bands: [...words.bands], pitch: t > 0.05 ? w / t / BANDS : 0.5, vowel: silentVowel };
+  }
+  const { analyser, bins, wave, audio } = session.mic;
   analyser.getByteFrequencyData(bins);
   analyser.getByteTimeDomainData(wave);
 
