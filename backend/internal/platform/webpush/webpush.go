@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	wp "github.com/SherClockHolmes/webpush-go"
@@ -60,7 +61,17 @@ type Sender struct {
 
 // NewSender needs a contact for the push services: a mailto: or https: URL.
 func NewSender(keys Keys, subject string) *Sender {
-	return &Sender{keys: keys, subject: subject, client: &http.Client{Timeout: 15 * time.Second}}
+	return &Sender{keys: keys, subject: Subscriber(subject), client: &http.Client{Timeout: 15 * time.Second}}
+}
+
+// Subscriber turns a contact into what webpush-go expects: it adds "mailto:" to anything that isn't an https URL,
+// so a "mailto:" given here must go, or Apple rejects the doubled "mailto:mailto:" with 403.
+func Subscriber(contact string) string {
+	contact = strings.TrimSpace(contact)
+	if len(contact) >= 7 && strings.EqualFold(contact[:7], "mailto:") {
+		return strings.TrimSpace(contact[7:])
+	}
+	return contact
 }
 
 // Send delivers payload to one browser subscription.
