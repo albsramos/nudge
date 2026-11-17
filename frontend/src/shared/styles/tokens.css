@@ -19,6 +19,7 @@
   --color-secondary-text: #121214;
   --color-danger: #e5484d;
   --color-danger-text: #ffffff;
+  --color-danger-soft: rgba(229, 72, 77, 0.1);
   --color-border: rgba(0, 0, 0, 0.08);
   --color-border-strong: rgba(0, 0, 0, 0.14);
   --color-ring: #121214;
@@ -80,6 +81,7 @@
     --color-secondary: #19191c;
     --color-secondary-text: #ededef;
     --color-danger: #ff6369;
+    --color-danger-soft: rgba(255, 99, 105, 0.14);
     --color-border: rgba(255, 255, 255, 0.08);
     --color-border-strong: rgba(255, 255, 255, 0.14);
     --color-ring: #ededef;

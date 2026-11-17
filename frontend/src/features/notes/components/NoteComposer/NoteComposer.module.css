@@ -20,6 +20,12 @@
   transform: scale(0.96);
 }
 
+.orb[data-state='listening'],
+.orb[data-state='starting'] {
+  /* A red ring for as long as the mic is on, the same red as the bar at the top. */
+  box-shadow: 0 0 0 2px var(--color-danger), 0 0 0 8px var(--color-danger-soft);
+}
+
 .orb:disabled {
   cursor: default;
 }
@@ -39,7 +45,7 @@
 }
 
 .orb[data-state='listening'] + .status {
-  color: var(--color-accent-ink);
+  color: var(--color-danger);
   font-weight: 500;
 }
 

@@ -14,7 +14,17 @@ export type VoiceState = {
   error?: string;
   /** False when the browser can hear but can't transcribe (the orb still reacts). */
   canTranscribe: boolean;
+  /** Why the last session ended on its own, to tell the user. Unset when they stopped it. */
+  stoppedBecause?: StopReason;
 };
+
+/** The mic never stays on unnoticed: it stops when the app is hidden, after a silence, or at a time limit. */
+export type StopReason = 'background' | 'silence' | 'limit';
+
+/** Seconds of quiet before listening stops by itself. */
+export const SILENCE_LIMIT_S = 10;
+/** The longest one listening session can run. */
+export const SESSION_LIMIT_S = 120;
 
 /** What the orb reads each frame: loudness, energy per band and pitch (all 0–1), and the vowel being said. */
 export type VoiceFrame = { level: number; bands: number[]; pitch: number; vowel: Vowel };
@@ -42,7 +52,20 @@ const RecognitionCtor: (new () => Recognition) | undefined =
 
 const listeners = new Set<() => void>();
 let state: VoiceState = { status: 'idle', transcript: '', interim: '', canTranscribe: Boolean(RecognitionCtor) };
-let session: { stream: MediaStream; audio: AudioContext; analyser: AnalyserNode; bins: Uint8Array<ArrayBuffer>; wave: Uint8Array<ArrayBuffer>; recognition?: Recognition } | undefined;
+let session:
+  | {
+      stream: MediaStream;
+      audio: AudioContext;
+      analyser: AnalyserNode;
+      bins: Uint8Array<ArrayBuffer>;
+      wave: Uint8Array<ArrayBuffer>;
+      recognition?: Recognition;
+      watchdog: ReturnType<typeof setInterval>;
+    }
+  | undefined;
+
+/** The live status: it can change while startVoice() awaits the mic, which a plain read can't see. */
+const currentStatus = (): VoiceStatus => state.status;
 
 function set(patch: Partial<VoiceState>) {
   state = { ...state, ...patch };
@@ -67,7 +90,7 @@ export function isVoiceSupported(): boolean {
 /** Starts listening. Call from a tap: browsers only allow the microphone from a user gesture. */
 export async function startVoice(): Promise<void> {
   if (session || state.status === 'starting') return;
-  set({ status: 'starting', transcript: '', interim: '', error: undefined });
+  set({ status: 'starting', transcript: '', interim: '', error: undefined, stoppedBecause: undefined });
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     const audio = new AudioContext();
@@ -76,12 +99,28 @@ export async function startVoice(): Promise<void> {
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.6;
     audio.createMediaStreamSource(stream).connect(analyser);
+    // Cancelled while the mic was opening (Stop tapped, or the app left during the permission prompt): release it.
+    if (currentStatus() !== 'starting' || document.visibilityState === 'hidden') {
+      for (const track of stream.getTracks()) track.stop();
+      void audio.close();
+      if (currentStatus() === 'starting') set({ status: 'idle', stoppedBecause: 'background' });
+      return;
+    }
+    const startedAt = Date.now();
+    let lastHeardAt = startedAt;
     session = {
       stream,
       audio,
       analyser,
       bins: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)),
       wave: new Uint8Array(new ArrayBuffer(analyser.fftSize)),
+      // Checks four times a second, separately from the orb, so the limits hold even if nothing is drawing.
+      watchdog: setInterval(() => {
+        const now = Date.now();
+        if (readVoice().level > 0.06) lastHeardAt = now;
+        if (now - startedAt > SESSION_LIMIT_S * 1000) stopVoice('limit');
+        else if (now - lastHeardAt > SILENCE_LIMIT_S * 1000) stopVoice('silence');
+      }, 250),
     };
     session.recognition = startRecognition();
     set({ status: 'listening' });
@@ -130,23 +169,34 @@ function startRecognition(): Recognition | undefined {
   return rec;
 }
 
-/** Stops listening and keeps what was heard. Returns the full transcript. */
-export function stopVoice(): string {
+/** Stops listening and keeps what was heard. Returns the full transcript. Pass a reason when it stops by itself. */
+export function stopVoice(reason?: StopReason): string {
   const current = session;
   session = undefined;
   if (current) {
+    clearInterval(current.watchdog);
     current.recognition?.stop();
     for (const track of current.stream.getTracks()) track.stop();
     void current.audio.close();
   }
   const heard = join(state.transcript, state.interim);
-  set({ status: state.status === 'error' ? 'error' : 'idle', transcript: heard, interim: '' });
+  set({ status: state.status === 'error' ? 'error' : 'idle', transcript: heard, interim: '', stoppedBecause: current ? reason : state.stoppedBecause });
   return heard;
+}
+
+// Leaving the app (switching apps, locking the phone, closing the tab) always turns the mic off.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && session) stopVoice('background');
+  });
+  window.addEventListener('pagehide', () => {
+    if (session) stopVoice('background');
+  });
 }
 
 /** Forgets the transcript once the note has taken it. */
 export function clearVoice() {
-  set({ transcript: '', interim: '', error: undefined, status: session ? state.status : 'idle' });
+  set({ transcript: '', interim: '', error: undefined, stoppedBecause: undefined, status: session ? state.status : 'idle' });
 }
 
 const silent: VoiceFrame = { level: 0, bands: new Array(BANDS).fill(0), pitch: 0.5, vowel: silentVowel };

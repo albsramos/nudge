@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { isAiConfigured, useSettings } from '@/shared/lib/settings';
-import { clearVoice, isVoiceSupported, startVoice, stopVoice, useVoice, type VoiceState } from '@/shared/lib/voice';
+import { clearVoice, isVoiceSupported, SESSION_LIMIT_S, SILENCE_LIMIT_S, startVoice, stopVoice, useVoice, type VoiceState } from '@/shared/lib/voice';
 import { Button } from '@/shared/ui/Button/Button';
 import { Orb } from '@/shared/ui/Orb/Orb';
 import { Textarea } from '@/shared/ui/Textarea/Textarea';
 import { useCreateNote } from '../../hooks/useCreateNote';
+import { ListeningBar } from './ListeningBar/ListeningBar';
 import styles from './NoteComposer.module.css';
 
 const join = (...parts: string[]) => parts.map((p) => p.trim()).filter(Boolean).join(' ');
@@ -14,6 +15,9 @@ function statusText(voice: VoiceState, isPending: boolean, isAiOn: boolean): str
   if (voice.status === 'starting') return 'Opening the microphone…';
   if (voice.status === 'listening') return voice.canTranscribe ? 'Listening. Tap the orb when you’re done.' : 'Listening, but this browser can’t transcribe. Type instead.';
   if (voice.error) return voice.error;
+  if (voice.stoppedBecause === 'silence') return `Stopped listening: ${SILENCE_LIMIT_S} seconds of silence`;
+  if (voice.stoppedBecause === 'background') return 'Stopped listening when you left the app';
+  if (voice.stoppedBecause === 'limit') return `Stopped listening after ${SESSION_LIMIT_S / 60} minutes`;
   return isVoiceSupported() ? 'Tap the orb and talk, or type below' : 'Type your note below';
 }
 
@@ -24,13 +28,14 @@ export function NoteComposer() {
   const [text, setText] = useState('');
   const [kick, setKick] = useState(0);
   const isListening = voice.status === 'listening';
+  const isMicOn = isListening || voice.status === 'starting';
   // What you said is shown after what you typed, live, until you edit or save.
   const spoken = join(voice.transcript, voice.interim);
   const value = spoken ? join(text, spoken) : text;
 
   function handleOrb() {
     setKick((k) => k + 1);
-    if (isListening || voice.status === 'starting') stopVoice();
+    if (isMicOn) stopVoice();
     else void startVoice();
   }
 
@@ -56,12 +61,13 @@ export function NoteComposer() {
 
   return (
     <form className={styles.root} onSubmit={handleSubmit} aria-busy={isPending}>
+      {isMicOn && <ListeningBar isStarting={!isListening} onStop={() => stopVoice()} />}
       <button
         type="button"
         className={styles.orb}
         onClick={handleOrb}
         aria-pressed={isListening}
-        aria-label={isListening ? 'Stop listening' : 'Talk'}
+        aria-label={isMicOn ? 'Stop listening' : 'Talk'}
         data-state={voice.status}
         disabled={isPending || !isVoiceSupported()}
       >
