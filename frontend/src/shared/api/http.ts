@@ -16,10 +16,16 @@ export async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const baseUrl = serverBaseUrl();
   if (!baseUrl) throw new ApiError(0, 'No reminder server is configured');
 
-  const response = await fetch(`${baseUrl}${url}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${url}`, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
+    });
+  } catch {
+    // Offline, a wrong URL, or a server that's down (its error page has no CORS headers, so it looks the same).
+    throw new ApiError(0, `Couldn't reach the reminder server at ${new URL(baseUrl).host}. Check the URL and that the server is running.`);
+  }
   const body = response.status === 204 ? undefined : await response.json().catch(() => undefined);
 
   if (!response.ok) {
