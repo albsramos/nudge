@@ -13,7 +13,7 @@ a reminder, and a notification arrives on time, even with the app closed.
 
 ## Develop
 
-Needs Go ≥ 1.24, Node ≥ 20, and Postgres (Docker, or a local server).
+Needs Go ≥ 1.26, Node ≥ 20, and Postgres (Docker, or a local server).
 
 ```bash
 make setup
