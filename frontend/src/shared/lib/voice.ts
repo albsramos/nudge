@@ -36,8 +36,11 @@ type Recognition = {
   onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
+  /** Fires once the recognizer is actually taking audio from the mic. */
+  onaudiostart: (() => void) | null;
   start: () => void;
   stop: () => void;
+  abort?: () => void;
 };
 
 const BANDS = 8;
@@ -65,6 +68,10 @@ let session:
   | undefined;
 /** Recognition started by the tap, before the session exists (the mic is still opening). */
 let pendingRecognition: Recognition | undefined;
+/** The last recognizer, until it has fully ended: a new one can't start while it still holds the mic on iPhone. */
+let liveRecognition: Recognition | undefined;
+/** How long to wait for transcription to take the mic before opening the orb's analyser anyway. */
+const AUDIO_START_WAIT_MS = 1500;
 
 /** The live status: it can change while startVoice() awaits the mic, which a plain read can't see. */
 const currentStatus = (): VoiceStatus => state.status;
@@ -99,6 +106,10 @@ export async function startVoice(): Promise<void> {
   pendingRecognition = startRecognition();
   let mic: Mic | undefined;
   try {
+    // Let transcription take the mic first. iPhone gives it to whoever asks last, and without a permission prompt
+    // in between (every session after the first) both would ask at once and transcription would lose.
+    if (pendingRecognition) await audioStarted(pendingRecognition);
+    if (currentStatus() !== 'starting') throw new DOMException('cancelled', 'AbortError');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     const audio = new AudioContext();
     await audio.resume();
@@ -109,6 +120,11 @@ export async function startVoice(): Promise<void> {
     mic = { stream, audio, analyser, bins: new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount)), wave: new Uint8Array(new ArrayBuffer(analyser.fftSize)) };
   } catch (error) {
     const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      pendingRecognition?.stop();
+      pendingRecognition = undefined;
+      return;
+    }
     // Without the analyser, transcription alone still works; without either, there's nothing to do.
     if (denied || !pendingRecognition) {
       pendingRecognition?.stop();
@@ -155,9 +171,23 @@ const recognitionErrors: Record<string, string> = {
   'language-not-supported': 'Speech-to-text doesn’t support your phone’s language here.',
 };
 
+/** Resolves once `rec` is taking audio, or after a short wait (some browsers never say). */
+function audioStarted(rec: Recognition): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, AUDIO_START_WAIT_MS);
+    rec.onaudiostart = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+  });
+}
+
 function startRecognition(): Recognition | undefined {
   if (!RecognitionCtor) return undefined;
+  // A recognizer from the last session may still be shutting down and holding the mic: cut it off now.
+  liveRecognition?.abort?.();
   const rec = new RecognitionCtor();
+  liveRecognition = rec;
   rec.lang = navigator.language || 'en-US';
   rec.continuous = true;
   rec.interimResults = true;
@@ -184,11 +214,13 @@ function startRecognition(): Recognition | undefined {
   };
   // Browsers end recognition after a pause: keep it going while listening.
   rec.onend = () => {
+    if (liveRecognition === rec && session?.recognition !== rec && pendingRecognition !== rec) liveRecognition = undefined;
     if (session?.recognition !== rec) return;
     try {
       rec.start();
     } catch {
-      // Already restarting, or the browser won't restart without a tap: the status line says so if it errors.
+      // iPhone won't restart it without a tap: say so instead of listening with nothing being written.
+      set({ error: 'Transcription paused. Tap the orb to keep going.' });
     }
   };
   try {

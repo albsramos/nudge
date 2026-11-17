@@ -4,6 +4,10 @@ import { act, renderHook } from '@testing-library/react';
 let inTap = false;
 let instance: FakeRecognition | undefined;
 const track = { stop: vi.fn() };
+/** Like iPhone: one recognizer holds the mic at a time, until it has fully ended. */
+let micHolder: FakeRecognition | undefined;
+/** Whether the analyser opened the mic before transcription had it (that makes transcription fail on iPhone). */
+let analyserCutIn = false;
 
 class FakeRecognition {
   lang = '';
@@ -12,13 +16,30 @@ class FakeRecognition {
   onresult: ((e: unknown) => void) | null = null;
   onerror: ((e: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
+  onaudiostart: (() => void) | null = null;
   isRunning = false;
+  hasAudio = false;
   start() {
     if (!inTap) throw new DOMException('not allowed outside a user gesture', 'NotAllowedError');
+    if (micHolder && micHolder !== this) throw new DOMException('recognition already started', 'InvalidStateError');
+    micHolder = this;
     this.isRunning = true;
+    queueMicrotask(() => {
+      this.hasAudio = true;
+      this.onaudiostart?.();
+    });
   }
+  /** Stopping is slow: it keeps the mic until onend, like the real thing. */
   stop() {
     this.isRunning = false;
+  }
+  abort() {
+    this.end();
+  }
+  end() {
+    this.isRunning = false;
+    if (micHolder === this) micHolder = undefined;
+    this.onend?.();
   }
   say(text: string, isFinal: boolean) {
     const result = Object.assign([{ transcript: text }], { isFinal });
@@ -50,7 +71,12 @@ async function loadVoice() {
   vi.stubGlobal('AudioContext', FakeAudioContext);
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
-    value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [track] })) },
+    value: {
+      getUserMedia: vi.fn(async () => {
+        if (micHolder && !micHolder.hasAudio) analyserCutIn = true;
+        return { getTracks: () => [track] };
+      }),
+    },
   });
   return import('./voice');
 }
@@ -66,6 +92,8 @@ async function tap(fn: () => Promise<void>) {
 afterEach(() => {
   vi.unstubAllGlobals();
   track.stop.mockClear();
+  micHolder = undefined;
+  analyserCutIn = false;
 });
 
 test('recognition starts inside the tap, so Safari allows it, and words arrive', async () => {
@@ -97,5 +125,38 @@ test('if the browser won’t share the mic, transcription keeps it and the orb f
   act(() => instance?.say('sss', false));
   expect(voice.readVoice().level).toBeGreaterThan(0.1);
   expect(voice.readVoice().bands[6]).toBeGreaterThan(0.2); // hissing sounds go high
+  voice.stopVoice();
+});
+
+test('a second session right after the first still transcribes', async () => {
+  const voice = await loadVoice();
+  await tap(() => voice.startVoice());
+  act(() => instance?.say('call mom', true));
+  const first = instance;
+  voice.stopVoice(); // e.g. Save: the first recognizer is still shutting down and holding the mic
+  voice.clearVoice();
+  expect(first?.isRunning).toBe(false);
+
+  await tap(() => voice.startVoice());
+  expect(instance).not.toBe(first);
+  expect(instance?.isRunning).toBe(true);
+  act(() => instance?.say('buy milk', true));
+  expect(voice.stopVoice()).toBe('buy milk');
+});
+
+test('the orb’s analyser waits until transcription has the mic', async () => {
+  const voice = await loadVoice();
+  await tap(() => voice.startVoice());
+  expect(analyserCutIn).toBe(false);
+  expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
+  voice.stopVoice();
+});
+
+test('if transcription ends and can’t restart, it says so', async () => {
+  const voice = await loadVoice();
+  await tap(() => voice.startVoice());
+  const state = renderHook(() => voice.useVoice()).result;
+  act(() => instance?.end()); // iPhone ended it; restarting outside a tap is refused
+  expect(state.current.error).toMatch(/Tap the orb/);
   voice.stopVoice();
 });
