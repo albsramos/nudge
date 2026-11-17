@@ -28,6 +28,10 @@ export interface OrbFrame {
   mouth?: { sx: number; sy: number; smile: number };
   /** 0–1: each square glows (a soft halo of light around it), e.g. while listening. */
   glow?: number;
+  /** 0–1: share of squares lit in a lighter blue, changing with `sparkleTick` so the orb shimmers. */
+  sparkle?: number;
+  /** Advances the shimmer: each new integer picks a new set of lit squares. */
+  sparkleTick?: number;
 }
 
 /** How far a loud band pushes the rim out, as a share of the radius. Keeps the sphere inside the board. */
@@ -177,9 +181,25 @@ export function drawOrb(ctx: CanvasRenderingContext2D, px: number, grid: number,
     }
     ctx.globalAlpha = 1;
   }
+  // Shimmer: some squares switch to a lighter blue (the orb colour mixed towards white), a new set each tick.
+  const sparkle = f.sparkle ?? 0;
+  const lit = sparkle > 0.01 ? lighter(color, 0.5) : null;
+  const tick = Math.floor(f.sparkleTick ?? 0);
   for (const { i, j } of dots) {
+    ctx.fillStyle = lit && hash(i * 7.3 + tick, j * 3.1 - tick) < sparkle ? lit : color;
     const x = Math.round(i * cell + pad);
     const y = Math.round(j * cell + pad);
     ctx.fillRect(x, y, Math.round(i * cell + pad + dot) - x, Math.round(j * cell + pad + dot) - y);
   }
+}
+
+/** A CSS rgb()/rgba()/hex colour mixed towards white by `amount` (0–1). Falls back to the colour as given. */
+export function lighter(color: string, amount: number): string {
+  let rgb: number[] | null = null;
+  const m = color.match(/rgba?\(([^)]+)\)/);
+  if (m) rgb = m[1].split(/[ ,/]+/).slice(0, 3).map(Number);
+  else if (/^#[0-9a-f]{6}$/i.test(color)) rgb = [1, 3, 5].map((k) => parseInt(color.slice(k, k + 2), 16));
+  if (!rgb || rgb.some(Number.isNaN)) return color;
+  const [r, g, b] = rgb.map((c) => Math.round(c + (255 - c) * amount));
+  return `rgb(${r}, ${g}, ${b})`;
 }

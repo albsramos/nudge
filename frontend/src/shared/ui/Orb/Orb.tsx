@@ -84,6 +84,7 @@ function runOrb(canvas: HTMLCanvasElement, size: number, grid: number, isIntro: 
   const bands = new Array<number>(BANDS).fill(0);
   let level = 0;
   let pitch = 0.5;
+  let sparkleTick = 0;
   const mouth = { sx: 1, sy: 1, smile: 0 };
   let reaction: Reaction | null = null;
   let lastKind: Reaction['kind'] | null = null;
@@ -161,6 +162,9 @@ function runOrb(canvas: HTMLCanvasElement, size: number, grid: number, isIntro: 
       mouth: voice > 0.01 ? mouth : undefined,
       // While listening the squares glow, a little brighter as you talk.
       glow: voice * (0.6 + 0.4 * level),
+      // A shimmer of lighter squares: a gentle twinkle in silence, more and faster as you talk.
+      sparkle: voice * (0.1 + 0.4 * level),
+      sparkleTick: (sparkleTick += dt * (6 + 10 * level)),
     });
     // Reduced motion: one still frame, except while listening, where the shape is the feedback.
     if (visible && (!reduce.matches || isListening || voice > 0.01)) raf = requestAnimationFrame(frame);
