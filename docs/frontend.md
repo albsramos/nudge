@@ -68,7 +68,7 @@ synced across tabs). The notes store is `features/notes/api/notesStore.ts`; sett
 - `shared/lib/voice.ts` owns the microphone: an `AnalyserNode` for loudness, pitch and 8 log-spaced bands
   (90 Hz to 4 kHz), and the Web Speech API for the transcript. Start it from a tap; it's a store (`useVoice()`).
   Browsers without speech recognition still get the orb; the user types instead.
-- The mic is never on unnoticed: a red ListeningBar is pinned to the top while it's
+- The mic is never on unnoticed: a red ListeningBar is pinned to the top and the orb's squares glow while it's
   open, and `voice.ts` turns it off when the app is hidden, after 10 s of silence, after 2 minutes, or on Stop
   (even mid-permission-prompt). `voice.test.ts` covers each case; keep it that way.
 

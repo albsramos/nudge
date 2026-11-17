@@ -26,6 +26,8 @@ export interface OrbFrame {
   bands?: readonly number[];
   /** The vowel's mouth shape: the sphere stretches (sx, sy) and bends into a grin (smile). */
   mouth?: { sx: number; sy: number; smile: number };
+  /** 0–1: each square glows (a soft halo of light around it), e.g. while listening. */
+  glow?: number;
 }
 
 /** How far a loud band pushes the rim out, as a share of the radius. Keeps the sphere inside the board. */
@@ -159,7 +161,23 @@ export function drawOrb(ctx: CanvasRenderingContext2D, px: number, grid: number,
   const cell = px / grid;
   const dot = Math.max(1, cell * 0.8);
   const pad = (cell - dot) / 2;
-  for (const { i, j } of orbDots(grid, f)) {
+  const dots = orbDots(grid, f);
+  const glow = f.glow ?? 0;
+  if (glow > 0.01) {
+    // The glow: two faint, larger squares under each dot, overlapping into a soft halo. Cheaper than a canvas
+    // blur on a phone, and it keeps the square, dithered look.
+    for (const [size, alpha] of [
+      [2.2, 0.05],
+      [1.45, 0.12],
+    ] as const) {
+      ctx.globalAlpha = alpha * glow;
+      const s = cell * size;
+      const off = (cell - s) / 2;
+      for (const { i, j } of dots) ctx.fillRect(i * cell + off, j * cell + off, s, s);
+    }
+    ctx.globalAlpha = 1;
+  }
+  for (const { i, j } of dots) {
     const x = Math.round(i * cell + pad);
     const y = Math.round(j * cell + pad);
     ctx.fillRect(x, y, Math.round(i * cell + pad + dot) - x, Math.round(j * cell + pad + dot) - y);

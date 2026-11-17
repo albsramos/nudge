@@ -159,6 +159,8 @@ function runOrb(canvas: HTMLCanvasElement, size: number, grid: number, isIntro: 
       // With the mouth shape leading, the per-band swell is a texture on top of it.
       bands: voice > 0.01 ? bands.map((b) => b * voice * 0.5) : undefined,
       mouth: voice > 0.01 ? mouth : undefined,
+      // While listening the squares glow, a little brighter as you talk.
+      glow: voice * (0.6 + 0.4 * level),
     });
     // Reduced motion: one still frame, except while listening, where the shape is the feedback.
     if (visible && (!reduce.matches || isListening || voice > 0.01)) raf = requestAnimationFrame(frame);
