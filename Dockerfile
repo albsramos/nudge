@@ -1,5 +1,6 @@
 # The reminder server (backend/), built from the repository root so hosts like Railway find it with no settings.
 # Migrations are embedded and applied on start.
+# Go version: keep in step with the go line in backend/go.mod.
 FROM golang:1.26 AS build
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
