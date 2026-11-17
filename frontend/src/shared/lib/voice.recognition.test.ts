@@ -5,7 +5,7 @@ let inTap = false;
 let instance: FakeRecognition | undefined;
 const track = { stop: vi.fn() };
 /** Like iPhone: one recognizer holds the mic at a time, until it has fully ended. */
-let micHolder: FakeRecognition | undefined;
+const mic: { holder?: FakeRecognition } = {};
 /** Whether the analyser opened the mic before transcription had it (that makes transcription fail on iPhone). */
 let analyserCutIn = false;
 
@@ -21,8 +21,8 @@ class FakeRecognition {
   hasAudio = false;
   start() {
     if (!inTap) throw new DOMException('not allowed outside a user gesture', 'NotAllowedError');
-    if (micHolder && micHolder !== this) throw new DOMException('recognition already started', 'InvalidStateError');
-    micHolder = this;
+    if (mic.holder && mic.holder !== this) throw new DOMException('recognition already started', 'InvalidStateError');
+    mic.holder = this;
     this.isRunning = true;
     queueMicrotask(() => {
       this.hasAudio = true;
@@ -38,7 +38,7 @@ class FakeRecognition {
   }
   end() {
     this.isRunning = false;
-    if (micHolder === this) micHolder = undefined;
+    if (mic.holder === this) mic.holder = undefined;
     this.onend?.();
   }
   say(text: string, isFinal: boolean) {
@@ -73,7 +73,7 @@ async function loadVoice() {
     configurable: true,
     value: {
       getUserMedia: vi.fn(async () => {
-        if (micHolder && !micHolder.hasAudio) analyserCutIn = true;
+        if (mic.holder && !mic.holder.hasAudio) analyserCutIn = true;
         return { getTracks: () => [track] };
       }),
     },
@@ -92,7 +92,7 @@ async function tap(fn: () => Promise<void>) {
 afterEach(() => {
   vi.unstubAllGlobals();
   track.stop.mockClear();
-  micHolder = undefined;
+  mic.holder = undefined;
   analyserCutIn = false;
 });
 
