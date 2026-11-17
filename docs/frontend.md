@@ -62,6 +62,9 @@ synced across tabs). The notes store is `features/notes/api/notesStore.ts`; sett
   icons from it.
 - `shared/ui/Orb` runs the canvas loop from a ref callback (no effects) and reads its live props from data
   attributes: `isBusy` spins it, `kick` plays a random reaction, `isListening` reads `readVoice()` every frame.
+- `shared/lib/vowel.ts` reads the vowel from the spectrum (F1 = how open, F2 = how front) and maps it to a mouth
+  shape: "oo" tall and narrow, "ah" wide open, "ee" flat with a grin. The orb mixes it in by how clearly a vowel
+  is heard, and by loudness, so room noise doesn't move it.
 - `shared/lib/voice.ts` owns the microphone: an `AnalyserNode` for loudness, pitch and 8 log-spaced bands
   (90 Hz to 4 kHz), and the Web Speech API for the transcript. Start it from a tap; it's a store (`useVoice()`).
   Browsers without speech recognition still get the orb; the user types instead.

@@ -24,6 +24,8 @@ export interface OrbFrame {
   burst?: number;
   /** Energy per frequency band, 0–1, low to high. The rim swells where its band is loud. */
   bands?: readonly number[];
+  /** The vowel's mouth shape: the sphere stretches (sx, sy) and bends into a grin (smile). */
+  mouth?: { sx: number; sy: number; smile: number };
 }
 
 /** How far a loud band pushes the rim out, as a share of the radius. Keeps the sphere inside the board. */
@@ -86,6 +88,11 @@ export function orbDots(grid: number, f: OrbFrame, dust = 1): Dot[] {
     for (let i = 0; i < grid; i++) {
       let x = (i + 0.5 - cx) / R;
       let y = (j + 0.5 - cy) / R;
+      if (f.mouth) {
+        // Stretch back onto the unit sphere; a grin lifts the sides (x²) so both rims curve up.
+        x /= f.mouth.sx;
+        y = y / f.mouth.sy + f.mouth.smile * 0.45 * x * x - f.mouth.smile * 0.12;
+      }
       if (f.bands && f.bands.length > 1) {
         // Squash the cell back onto the unit sphere by the rim's swell in its direction.
         // Never past the board's edge in this direction (the sphere sits above centre, so the crown has least room).

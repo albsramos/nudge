@@ -1,6 +1,7 @@
 // Voice input: the microphone's sound for the orb, and speech-to-text for the note. Knows no domain.
 // One controller for the whole app, read in components with useVoice() (a store, no effects).
 import { useSyncExternalStore } from 'react';
+import { estimateVowel, silentVowel, type Vowel } from './vowel';
 
 export type VoiceStatus = 'idle' | 'starting' | 'listening' | 'error';
 
@@ -15,8 +16,8 @@ export type VoiceState = {
   canTranscribe: boolean;
 };
 
-/** What the orb reads each frame: loudness and energy per band, all 0–1. */
-export type VoiceFrame = { level: number; bands: number[]; pitch: number };
+/** What the orb reads each frame: loudness, energy per band and pitch (all 0–1), and the vowel being said. */
+export type VoiceFrame = { level: number; bands: number[]; pitch: number; vowel: Vowel };
 
 type Recognition = {
   lang: string;
@@ -148,7 +149,7 @@ export function clearVoice() {
   set({ transcript: '', interim: '', error: undefined, status: session ? state.status : 'idle' });
 }
 
-const silent: VoiceFrame = { level: 0, bands: new Array(BANDS).fill(0), pitch: 0.5 };
+const silent: VoiceFrame = { level: 0, bands: new Array(BANDS).fill(0), pitch: 0.5, vowel: silentVowel };
 
 /** The microphone right now. Cheap enough to call every animation frame. */
 export function readVoice(): VoiceFrame {
@@ -179,7 +180,9 @@ export function readVoice(): VoiceFrame {
   }
   // Pitch: where the energy sits, low (0) to high (1).
   const pitch = total > 0.05 ? weighted / total / BANDS : 0.5;
-  return { level, bands, pitch };
+  // Only a voice shapes the orb: quiet room noise can have peaks too, so the vowel fades out below speaking level.
+  const vowel = estimateVowel(bins, hzPerBin);
+  return { level, bands, pitch, vowel: { ...vowel, strength: vowel.strength * Math.min(1, level / 0.15) } };
 }
 
 function join(a: string, b: string): string {

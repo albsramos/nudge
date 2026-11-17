@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { drawOrb } from '@/shared/lib/orb';
 import { readVoice } from '@/shared/lib/voice';
+import { mouthFor } from '@/shared/lib/vowel';
 import { cn } from '@/shared/lib/cn';
 import { pickReaction, type Reaction } from './reactions';
 import styles from './Orb.module.css';
@@ -83,6 +84,7 @@ function runOrb(canvas: HTMLCanvasElement, size: number, grid: number, isIntro: 
   const bands = new Array<number>(BANDS).fill(0);
   let level = 0;
   let pitch = 0.5;
+  const mouth = { sx: 1, sy: 1, smile: 0 };
   let reaction: Reaction | null = null;
   let lastKind: Reaction['kind'] | null = null;
   let lastKick = readLive(canvas).kick;
@@ -120,6 +122,12 @@ function runOrb(canvas: HTMLCanvasElement, size: number, grid: number, isIntro: 
     const levelTo = heard?.level ?? 0;
     level += (levelTo - level) * ease(levelTo > level ? 24 : 6, dt);
     if (heard && heard.level > 0.04) pitch += (heard.pitch - pitch) * ease(8, dt);
+    // The vowel's mouth shape: quick to open, a little slower to relax, so the orb keeps up with syllables.
+    const mouthTo = mouthFor(heard ? heard.vowel : { open: 0, front: 0, strength: 0 });
+    for (const key of ['sx', 'sy', 'smile'] as const) {
+      const away = Math.abs(mouthTo[key] - (key === 'smile' ? 0 : 1)) > Math.abs(mouth[key] - (key === 'smile' ? 0 : 1));
+      mouth[key] += (mouthTo[key] - mouth[key]) * ease(away ? 18 : 9, dt);
+    }
 
     // Light: busy or a spin reaction speeds it round; listening, it follows the pitch (low = bottom left,
     // high = top right); otherwise it sways at rest.
@@ -148,7 +156,9 @@ function runOrb(canvas: HTMLCanvasElement, size: number, grid: number, isIntro: 
 
     drawOrb(ctx, px, grid, color, {
       t, spin, fill, assemble, light: angle, orbit, twinkle, burst,
-      bands: voice > 0.01 ? bands.map((b) => b * voice) : undefined,
+      // With the mouth shape leading, the per-band swell is a texture on top of it.
+      bands: voice > 0.01 ? bands.map((b) => b * voice * 0.5) : undefined,
+      mouth: voice > 0.01 ? mouth : undefined,
     });
     // Reduced motion: one still frame, except while listening, where the shape is the feedback.
     if (visible && (!reduce.matches || isListening || voice > 0.01)) raf = requestAnimationFrame(frame);
