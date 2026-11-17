@@ -15,11 +15,12 @@ function statusText(voice: VoiceState, isPending: boolean, isAiOn: boolean): str
   if (voice.status === 'starting') return 'Opening the microphone…';
   // A transcription problem shows even while listening, so silence on screen never hides a failure.
   if (voice.error) return voice.error;
-  if (voice.status === 'listening') return voice.canTranscribe ? 'Listening. Tap the orb when you’re done.' : 'Listening, but this browser can’t transcribe. Type instead.';
+  // Only something worth reading shows here: the bar at the top already says it's listening.
+  if (voice.status === 'listening') return voice.canTranscribe ? '' : 'This browser can’t transcribe. Type instead.';
   if (voice.stoppedBecause === 'silence') return `Stopped listening: ${SILENCE_LIMIT_S} seconds of silence`;
   if (voice.stoppedBecause === 'background') return 'Stopped listening when you left the app';
   if (voice.stoppedBecause === 'limit') return `Stopped listening after ${SESSION_LIMIT_S / 60} minutes`;
-  return isVoiceSupported() ? 'Tap the orb and talk, or type below' : 'Type your note below';
+  return '';
 }
 
 export function NoteComposer() {

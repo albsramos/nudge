@@ -38,11 +38,6 @@
   text-wrap: balance;
 }
 
-.orb[data-state='listening'] + .status {
-  color: var(--color-danger);
-  font-weight: 500;
-}
-
 .status[data-tone='error'] {
   color: var(--color-danger);
 }
