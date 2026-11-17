@@ -15,10 +15,15 @@ becomes the default server in the app; users can still change it in Settings.
 The app is at `https://<user>.github.io/<repo>/`. GitHub Pages serves HTTPS, which service workers, push and
 "install" all require.
 
-## Backend: any container host
+## Backend: Railway (or any container host)
 
-`backend/Dockerfile` builds a small image that applies migrations on start (`MIGRATE_ON_START=true`). It needs
-a Postgres database and a public HTTPS URL. Fly.io, Render, Railway or Cloud Run all work.
+The root `Dockerfile` builds the server and `railway.json` sets its health check, so on Railway it's:
+New Project → Deploy from GitHub repo → this repo; + New → Database → PostgreSQL; set the variables below
+(`DATABASE_URL` = `${{Postgres.DATABASE_URL}}`); Settings → Networking → Generate Domain. Paste that URL into
+the app's Settings → Server URL. It must run all the time (no sleeping free tier), or reminders go out late.
+
+The image applies migrations on start (`MIGRATE_ON_START=true`). `backend/Dockerfile` builds the same server
+from inside `backend/`.
 
 | Variable | Required | Meaning |
 |----------|----------|---------|
