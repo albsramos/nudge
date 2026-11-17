@@ -13,9 +13,6 @@ class FakeRecognition {
   onerror: ((e: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
   isRunning = false;
-  constructor() {
-    instance = this;
-  }
   start() {
     if (!inTap) throw new DOMException('not allowed outside a user gesture', 'NotAllowedError');
     this.isRunning = true;
@@ -45,7 +42,11 @@ class FakeAudioContext {
 
 async function loadVoice() {
   vi.resetModules();
-  vi.stubGlobal('webkitSpeechRecognition', FakeRecognition);
+  // `new webkitSpeechRecognition()` returns this object, so the test can drive it.
+  vi.stubGlobal('webkitSpeechRecognition', function Recognition() {
+    instance = new FakeRecognition();
+    return instance;
+  });
   vi.stubGlobal('AudioContext', FakeAudioContext);
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
