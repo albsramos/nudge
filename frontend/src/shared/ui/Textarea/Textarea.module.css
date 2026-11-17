@@ -1,0 +1,24 @@
+.root {
+  inline-size: 100%;
+  min-block-size: 5rem;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-2);
+  background: var(--color-muted);
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-size-3);
+  line-height: var(--line-height);
+  letter-spacing: -0.005em;
+  resize: vertical;
+  field-sizing: content;
+}
+
+.root::placeholder {
+  color: var(--color-faint);
+}
+
+.root:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1.5px var(--color-accent);
+}

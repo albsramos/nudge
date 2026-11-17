@@ -1,0 +1,37 @@
+.root {
+  display: grid;
+  gap: var(--space-4);
+  max-inline-size: var(--content-width);
+  margin-inline: auto;
+  padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-5), env(safe-area-inset-right))
+    max(var(--space-8), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block-start: var(--space-2);
+  animation: rise 0.5s var(--ease-out) both;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-5);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.15;
+}
+
+.sub {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  letter-spacing: -0.005em;
+}
+
+.main {
+  display: grid;
+  gap: var(--space-5);
+}

@@ -1,0 +1,8 @@
+.root {
+  font-size: var(--font-size-1);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-text-muted);
+  letter-spacing: 0;
+  user-select: none;
+}

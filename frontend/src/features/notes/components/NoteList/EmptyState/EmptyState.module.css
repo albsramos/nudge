@@ -1,0 +1,30 @@
+.root {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-8) var(--space-4);
+  border-radius: var(--radius-3);
+  background: var(--color-muted);
+  text-align: center;
+}
+
+.icon {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin-block-end: var(--space-2);
+  color: var(--color-faint);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-2);
+  font-weight: 600;
+  letter-spacing: var(--tracking);
+}
+
+.text {
+  margin: 0;
+  max-inline-size: 18rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+}

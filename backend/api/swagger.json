@@ -1,0 +1,231 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Schedules note reminders and delivers them as Web Push notifications.",
+        "title": "Nudge API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/push/public-key": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "push"
+                ],
+                "summary": "Get the Web Push public key",
+                "operationId": "getPushPublicKey",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PublicKeyResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reminders": {
+            "post": {
+                "description": "Stores a reminder and sends it as a Web Push notification at fireAt.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reminders"
+                ],
+                "summary": "Schedule a reminder",
+                "operationId": "createReminder",
+                "parameters": [
+                    {
+                        "description": "Reminder to schedule",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreateReminderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ReminderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reminders/{id}": {
+            "delete": {
+                "tags": [
+                    "reminders"
+                ],
+                "summary": "Cancel a reminder",
+                "operationId": "deleteReminder",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Reminder ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "CreateReminderRequest": {
+            "type": "object",
+            "required": [
+                "fireAt",
+                "noteId",
+                "subscription",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Ask about the weekend"
+                },
+                "fireAt": {
+                    "type": "string"
+                },
+                "noteId": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "subscription": {
+                    "$ref": "#/definitions/PushSubscription"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "example": "Call mom"
+                }
+            }
+        },
+        "ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "not found"
+                }
+            }
+        },
+        "PublicKeyResponse": {
+            "type": "object",
+            "required": [
+                "publicKey"
+            ],
+            "properties": {
+                "publicKey": {
+                    "type": "string",
+                    "example": "BNc..."
+                }
+            }
+        },
+        "PushSubscription": {
+            "type": "object",
+            "required": [
+                "endpoint",
+                "keys"
+            ],
+            "properties": {
+                "endpoint": {
+                    "type": "string",
+                    "example": "https://fcm.googleapis.com/fcm/send/abc"
+                },
+                "keys": {
+                    "$ref": "#/definitions/SubscriptionKeys"
+                }
+            }
+        },
+        "ReminderResponse": {
+            "type": "object",
+            "required": [
+                "fireAt",
+                "id",
+                "noteId"
+            ],
+            "properties": {
+                "fireAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "noteId": {
+                    "type": "string"
+                },
+                "sentAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "SubscriptionKeys": {
+            "type": "object",
+            "required": [
+                "auth",
+                "p256dh"
+            ],
+            "properties": {
+                "auth": {
+                    "type": "string"
+                },
+                "p256dh": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

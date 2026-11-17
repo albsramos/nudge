@@ -1,0 +1,18 @@
+.root {
+  position: relative;
+}
+
+.icon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--space-3);
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--color-faint);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.input {
+  padding-inline-start: calc(var(--space-3) * 2 + 1rem);
+}

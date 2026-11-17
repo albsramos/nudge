@@ -1,0 +1,118 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--color-overlay);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fade 200ms var(--ease-out);
+}
+
+.content {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: 51;
+  display: grid;
+  gap: var(--space-5);
+  inline-size: calc(100% - 2 * var(--space-4));
+  max-inline-size: 26rem;
+  max-block-size: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  border-radius: var(--radius-sheet);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-2);
+  transform: translate(-50%, -50%);
+  animation: sheet-in 300ms var(--ease-out);
+}
+
+/* On a phone it's a sheet from the bottom, like Stack's. */
+@media (max-width: 640px) {
+  .content {
+    inset-block: auto 0;
+    inset-inline: 0;
+    inline-size: 100%;
+    max-inline-size: none;
+    max-block-size: 92dvh;
+    padding-block-end: max(var(--space-5), env(safe-area-inset-bottom));
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    transform: none;
+    animation: drawer-in 380ms var(--ease-drawer);
+  }
+}
+
+.close {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-end: var(--space-3);
+  display: grid;
+  place-items: center;
+  inline-size: var(--control-height);
+  block-size: var(--control-height);
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .close:hover {
+    background: var(--color-muted);
+    color: var(--color-text);
+  }
+}
+
+.close :global(svg) {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+  padding-inline-end: var(--space-8);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-4);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+}
+
+.footer {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-2);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.97);
+    filter: blur(4px);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateY(100%);
+  }
+}

@@ -1,0 +1,34 @@
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  inline-size: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-body);
+  font-size: var(--font-size-2);
+}
+
+.title {
+  font-weight: 600;
+  letter-spacing: var(--tracking);
+}
+
+.description {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+  line-height: 1.4;
+}
+
+.icon {
+  margin-block-start: 2px;
+  color: var(--color-accent-ink);
+}
+
+.icon :global(svg) {
+  inline-size: 1rem;
+  block-size: 1rem;
+}

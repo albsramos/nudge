@@ -1,0 +1,98 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-2);
+  font: inherit;
+  font-size: var(--font-size-2);
+  font-weight: 600;
+  letter-spacing: var(--tracking);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Press feedback everywhere: a small, quick scale that springs back on the same curve. */
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    opacity var(--motion-fast);
+}
+
+.root:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.root :global(svg) {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.root[data-variant='default'] {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  box-shadow: var(--shadow-button);
+}
+
+.root[data-variant='secondary'],
+.root[data-variant='outline'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-1);
+}
+
+.root[data-variant='ghost'] {
+  background: transparent;
+  color: var(--color-text);
+}
+
+.root[data-variant='destructive'] {
+  background: var(--color-surface);
+  color: var(--color-danger);
+  box-shadow: var(--shadow-1);
+}
+
+@media (hover: hover) {
+  .root[data-variant='ghost']:not(:disabled):hover,
+  .root[data-variant='secondary']:not(:disabled):hover,
+  .root[data-variant='outline']:not(:disabled):hover {
+    background: var(--color-muted);
+  }
+}
+
+.root[data-size='sm'] {
+  min-block-size: var(--control-height-sm);
+  padding-inline: var(--space-3);
+  border-radius: 8px;
+  font-size: var(--font-size-1);
+}
+
+.root[data-size='lg'] {
+  min-block-size: var(--control-height-lg);
+  padding-inline: var(--space-5);
+  border-radius: 12px;
+  font-size: 0.9375rem;
+}
+
+.root[data-size='icon'] {
+  inline-size: var(--control-height);
+  padding: 0;
+}
+
+.root:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.root[data-variant='default']:disabled {
+  opacity: 1;
+  background: var(--color-muted-2);
+  color: var(--color-text-muted);
+  box-shadow: none;
+}

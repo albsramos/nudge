@@ -1,0 +1,28 @@
+.root {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-2);
+  background: var(--color-muted);
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-size-3);
+  letter-spacing: -0.005em;
+  transition: box-shadow var(--motion-fast) var(--ease-out), background-color var(--motion-fast);
+}
+
+.root::placeholder {
+  color: var(--color-faint);
+}
+
+.root:focus-visible {
+  outline: none;
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1.5px var(--color-accent);
+}
+
+.root:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

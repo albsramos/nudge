@@ -1,0 +1,66 @@
+.root {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-inline-size: 100%;
+  min-block-size: 2rem;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-2);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  font-size: var(--font-size-1);
+  font-weight: 500;
+}
+
+.root svg {
+  inline-size: 0.8125rem;
+  block-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.root time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.root[data-done='true'] {
+  background: var(--color-muted);
+  color: var(--color-faint);
+}
+
+.root[data-done='true'] time {
+  text-decoration: line-through;
+}
+
+.relative {
+  opacity: 0.7;
+}
+
+.label {
+  overflow: hidden;
+  max-inline-size: 12rem;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .remove:hover {
+    background: var(--color-surface);
+    opacity: 1;
+  }
+}

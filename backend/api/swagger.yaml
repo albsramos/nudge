@@ -1,0 +1,157 @@
+basePath: /
+definitions:
+  CreateReminderRequest:
+    properties:
+      body:
+        example: Ask about the weekend
+        maxLength: 1000
+        type: string
+      fireAt:
+        type: string
+      noteId:
+        maxLength: 100
+        minLength: 1
+        type: string
+      subscription:
+        $ref: '#/definitions/PushSubscription'
+      title:
+        example: Call mom
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - fireAt
+    - noteId
+    - subscription
+    - title
+    type: object
+  ErrorResponse:
+    properties:
+      message:
+        example: not found
+        type: string
+    type: object
+  PublicKeyResponse:
+    properties:
+      publicKey:
+        example: BNc...
+        type: string
+    required:
+    - publicKey
+    type: object
+  PushSubscription:
+    properties:
+      endpoint:
+        example: https://fcm.googleapis.com/fcm/send/abc
+        type: string
+      keys:
+        $ref: '#/definitions/SubscriptionKeys'
+    required:
+    - endpoint
+    - keys
+    type: object
+  ReminderResponse:
+    properties:
+      fireAt:
+        type: string
+      id:
+        format: uuid
+        type: string
+      noteId:
+        type: string
+      sentAt:
+        type: string
+    required:
+    - fireAt
+    - id
+    - noteId
+    type: object
+  SubscriptionKeys:
+    properties:
+      auth:
+        type: string
+      p256dh:
+        type: string
+    required:
+    - auth
+    - p256dh
+    type: object
+info:
+  contact: {}
+  description: Schedules note reminders and delivers them as Web Push notifications.
+  title: Nudge API
+  version: "1.0"
+paths:
+  /api/push/public-key:
+    get:
+      operationId: getPushPublicKey
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PublicKeyResponse'
+      summary: Get the Web Push public key
+      tags:
+      - push
+  /api/reminders:
+    post:
+      consumes:
+      - application/json
+      description: Stores a reminder and sends it as a Web Push notification at fireAt.
+      operationId: createReminder
+      parameters:
+      - description: Reminder to schedule
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/CreateReminderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ReminderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Schedule a reminder
+      tags:
+      - reminders
+  /api/reminders/{id}:
+    delete:
+      operationId: deleteReminder
+      parameters:
+      - description: Reminder ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Cancel a reminder
+      tags:
+      - reminders
+swagger: "2.0"

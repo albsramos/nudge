@@ -1,0 +1,34 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 7px;
+  border-radius: var(--radius-1);
+  font: 500 11px/1.2 var(--font-mono);
+  white-space: nowrap;
+}
+
+.root :global(svg) {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+
+.root[data-variant='default'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.root[data-variant='secondary'] {
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+}
+
+.root[data-variant='outline'] {
+  box-shadow: 0 0 0 1px var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.root[data-variant='destructive'] {
+  background: var(--color-danger);
+  color: var(--color-danger-text);
+}

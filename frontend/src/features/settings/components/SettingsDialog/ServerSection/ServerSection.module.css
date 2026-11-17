@@ -1,0 +1,33 @@
+.root {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.legend {
+  margin-block-end: var(--space-3);
+  padding: 0;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.help {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+  line-height: 1.45;
+}
+
+.test {
+  justify-self: start;
+}
