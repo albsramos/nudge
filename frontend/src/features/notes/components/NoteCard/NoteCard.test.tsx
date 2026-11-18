@@ -31,7 +31,8 @@ test('edits a note’s title and text', async () => {
   notesStore.set([note]);
   renderList();
 
-  await userEvent.click(screen.getByRole('button', { name: /Edit “Look into home pitch perfect designs”/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Actions for “Look into home pitch perfect designs”' }));
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
   const title = screen.getByLabelText('Title');
   await userEvent.clear(title);
   await userEvent.type(title, 'Review Pitch Perfect home designs');
@@ -47,9 +48,33 @@ test('cancel leaves the note as it was', async () => {
   notesStore.set([note]);
   renderList();
 
-  await userEvent.click(screen.getByRole('button', { name: /Edit “/ }));
+  await userEvent.click(screen.getByRole('button', { name: /Actions for/ }));
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
   await userEvent.type(screen.getByLabelText('Title'), ' changed');
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
   expect(notesStore.get()[0].title).toBe('Look into home pitch perfect designs');
+});
+
+test('the menu holds the note’s actions: delete', async () => {
+  notesStore.set([note]);
+  renderList();
+
+  expect(screen.queryByRole('button', { name: /Delete|Edit/ })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /Actions for/ }));
+  expect(screen.getAllByRole('menuitem').map((i) => i.textContent?.trim())).toEqual(['Edit', 'Add reminder', 'Delete']);
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+
+  expect(notesStore.get()).toEqual([]);
+});
+
+test('the menu opens the reminder sheet, which starts without a label', async () => {
+  notesStore.set([note]);
+  renderList();
+
+  await userEvent.click(screen.getByRole('button', { name: /Actions for/ }));
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Add reminder' }));
+
+  expect(await screen.findByRole('heading', { name: 'Add a reminder' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Notification text')).toHaveValue('');
 });

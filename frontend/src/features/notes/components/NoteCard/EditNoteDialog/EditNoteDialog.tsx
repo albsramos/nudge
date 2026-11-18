@@ -1,7 +1,5 @@
-import { Pencil } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '@/shared/ui/Button/Button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/ui/Dialog/Dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/Dialog/Dialog';
 import { Input } from '@/shared/ui/Input/Input';
 import { Label } from '@/shared/ui/Label/Label';
 import { Textarea } from '@/shared/ui/Textarea/Textarea';
@@ -11,25 +9,21 @@ import styles from './EditNoteDialog.module.css';
 
 type EditNoteDialogProps = {
   note: Note;
+  isOpen?: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 };
 
-export function EditNoteDialog({ note }: EditNoteDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function EditNoteDialog({ note, isOpen = false, onOpenChange }: EditNoteDialogProps) {
   const { editNote, isPending } = useEditNote();
 
   // The form starts from the note each time it opens (it remounts), so there's nothing to keep in sync.
   async function handleAction(formData: FormData) {
     await editNote({ noteId: note.id, title: String(formData.get('title') ?? ''), body: String(formData.get('body') ?? '') });
-    setIsOpen(false);
+    onOpenChange(false);
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Edit “${note.title}”`}>
-          <Pencil />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit note</DialogTitle>

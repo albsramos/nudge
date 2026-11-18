@@ -1,8 +1,6 @@
-import { BellPlus } from 'lucide-react';
-import { useState } from 'react';
 import { useNow } from '@/shared/lib/now';
 import { Button } from '@/shared/ui/Button/Button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/ui/Dialog/Dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/Dialog/Dialog';
 import { Input } from '@/shared/ui/Input/Input';
 import { Label } from '@/shared/ui/Label/Label';
 import { toLocalInputValue } from '../../../domain/time';
@@ -11,7 +9,8 @@ import styles from './AddReminderDialog.module.css';
 
 type AddReminderDialogProps = {
   noteId: string;
-  defaultLabel: string;
+  isOpen?: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 };
 
 function inAnHour(now: Date): string {
@@ -20,8 +19,7 @@ function inAnHour(now: Date): string {
   return toLocalInputValue(at);
 }
 
-export function AddReminderDialog({ noteId, defaultLabel }: AddReminderDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AddReminderDialog({ noteId, isOpen = false, onOpenChange }: AddReminderDialogProps) {
   const { addReminder, isPending } = useAddReminder();
   const now = useNow();
 
@@ -29,16 +27,11 @@ export function AddReminderDialog({ noteId, defaultLabel }: AddReminderDialogPro
     const at = new Date(String(formData.get('at')));
     if (Number.isNaN(at.getTime())) return;
     await addReminder({ noteId, at, label: String(formData.get('label') ?? '') });
-    setIsOpen(false);
+    onOpenChange(false);
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Add reminder">
-          <BellPlus />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a reminder</DialogTitle>
@@ -51,7 +44,7 @@ export function AddReminderDialog({ noteId, defaultLabel }: AddReminderDialogPro
           </div>
           <div className={styles.field}>
             <Label htmlFor={`label-${noteId}`}>Notification text</Label>
-            <Input id={`label-${noteId}`} name="label" defaultValue={defaultLabel} maxLength={200} />
+            <Input id={`label-${noteId}`} name="label" placeholder="Same as the title" maxLength={200} />
           </div>
           <DialogFooter>
             <DialogClose asChild>
