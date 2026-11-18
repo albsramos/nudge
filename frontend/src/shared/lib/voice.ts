@@ -1,6 +1,7 @@
 // Voice input: the microphone's sound for the orb, and speech-to-text for the note. Knows no domain.
 // One controller for the whole app, read in components with useVoice() (a store, no effects).
 import { useSyncExternalStore } from 'react';
+import { mergePhrase, readResults } from './transcript';
 import { estimateVowel, silentVowel, type Vowel } from './vowel';
 
 export type VoiceStatus = 'idle' | 'starting' | 'listening' | 'error';
@@ -70,6 +71,13 @@ let session:
 let pendingRecognition: Recognition | undefined;
 /** The last recognizer, until it has fully ended: a new one can't start while it still holds the mic on iPhone. */
 let liveRecognition: Recognition | undefined;
+/**
+ * The recognizer whose results still belong in the transcript. Stays set after Stop, so the last words (iPhone
+ * sends them a moment later) still land; cleared once a note has taken the transcript, so they can't come back.
+ */
+let acceptingFrom: Recognition | undefined;
+/** The transcript from earlier runs of this recording (browsers end a run after a pause; we start another). */
+let runBase = '';
 /** How long to wait for transcription to take the mic before opening the orb's analyser anyway. */
 const AUDIO_START_WAIT_MS = 1500;
 
@@ -191,16 +199,18 @@ function startRecognition(): Recognition | undefined {
   rec.lang = navigator.language || 'en-US';
   rec.continuous = true;
   rec.interimResults = true;
+  acceptingFrom = rec;
+  runBase = '';
   rec.onresult = (event) => {
-    let finals = '';
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i];
-      if (result.isFinal) finals += result[0].transcript;
-      else interim += result[0].transcript;
-    }
-    feedWords(interim.length > state.interim.length ? interim.slice(state.interim.length) : finals);
-    set({ transcript: join(state.transcript, finals), interim: interim.trim(), error: undefined });
+    if (rec !== acceptingFrom) return;
+    // Rebuild from every result of this run, not just the new ones: iPhone repeats and regrows phrases.
+    const all = Array.from(event.results, (r) => ({ text: r[0].transcript, isFinal: r.isFinal }));
+    const { finals, interim } = readResults(all);
+    const transcript = mergePhrase(runBase, finals);
+    const before = join(state.transcript, state.interim);
+    const after = join(transcript, interim);
+    if (after.length > before.length) feedWords(after.slice(before.length));
+    set({ transcript, interim, error: undefined });
   };
   rec.onerror = (event) => {
     if (event.error === 'no-speech' || event.error === 'aborted') return;
@@ -216,6 +226,9 @@ function startRecognition(): Recognition | undefined {
   rec.onend = () => {
     if (liveRecognition === rec && session?.recognition !== rec && pendingRecognition !== rec) liveRecognition = undefined;
     if (session?.recognition !== rec) return;
+    // The next run reports its results from scratch: keep what this one heard.
+    runBase = join(state.transcript, state.interim);
+    set({ transcript: runBase, interim: '' });
     try {
       rec.start();
     } catch {
@@ -260,6 +273,8 @@ if (typeof document !== 'undefined') {
 
 /** Forgets the transcript once the note has taken it. */
 export function clearVoice() {
+  acceptingFrom = undefined;
+  runBase = '';
   set({ transcript: '', interim: '', error: undefined, stoppedBecause: undefined, status: session ? state.status : 'idle' });
 }
 

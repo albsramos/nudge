@@ -41,9 +41,13 @@ class FakeRecognition {
     if (mic.holder === this) mic.holder = undefined;
     this.onend?.();
   }
+  /** This run's results, like the real list: settled phrases stay, the guess at the end is replaced. */
+  results: { text: string; isFinal: boolean }[] = [];
   say(text: string, isFinal: boolean) {
-    const result = Object.assign([{ transcript: text }], { isFinal });
-    this.onresult?.({ resultIndex: 0, results: [result] });
+    if (this.results.at(-1)?.isFinal === false) this.results.pop();
+    this.results.push({ text, isFinal });
+    const results = this.results.map((r) => Object.assign([{ transcript: r.text }], { isFinal: r.isFinal }));
+    this.onresult?.({ resultIndex: results.length - 1, results });
   }
 }
 
@@ -159,4 +163,41 @@ test('if transcription ends and can’t restart, it says so', async () => {
   act(() => instance?.end()); // iPhone ended it; restarting outside a tap is refused
   expect(state.current.error).toMatch(/Tap the orb/);
   voice.stopVoice();
+});
+
+test('iPhone repeating a phrase doesn’t double the transcript', async () => {
+  const voice = await loadVoice();
+  await tap(() => voice.startVoice());
+  const said = 'Remind me to repay Z’s manager PR at 9 AM today';
+  act(() => instance?.say(said, true));
+  act(() => instance?.say(said, true));
+  expect(voice.stopVoice()).toBe(said);
+});
+
+test('words that arrive after the note took the transcript don’t come back', async () => {
+  const voice = await loadVoice();
+  const state = renderHook(() => voice.useVoice()).result;
+  await tap(() => voice.startVoice());
+  const rec = instance;
+  act(() => rec?.say('buy milk', false));
+  act(() => {
+    voice.stopVoice(); // Save while listening…
+    voice.clearVoice(); // …and the note takes the words
+  });
+  act(() => rec?.say('buy milk', true)); // iPhone's late final result
+  expect(state.current.transcript).toBe('');
+  expect(state.current.interim).toBe('');
+});
+
+test('after Stop (no save), the last words still land', async () => {
+  const voice = await loadVoice();
+  const state = renderHook(() => voice.useVoice()).result;
+  await tap(() => voice.startVoice());
+  const rec = instance;
+  act(() => rec?.say('call mom', false));
+  act(() => {
+    voice.stopVoice();
+  });
+  act(() => rec?.say('call mom tonight', true));
+  expect(state.current.transcript).toBe('call mom tonight');
 });
