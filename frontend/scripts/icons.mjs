@@ -4,11 +4,14 @@ import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { orbDots } from '../src/shared/lib/orb.ts';
 
-const BLUE = '#1f3dff';
-const BG = '#ffffff';
+// Dark, like the app in dark mode: the orb's brighter dark-mode blue on the app's near-black.
+const BLUE = '#4d6bff';
+const BG = '#0a0a0b';
+// The browser-tab icon follows the system theme, so it also carries the light version.
+const LIGHT = { blue: '#1f3dff', bg: '#ffffff' };
 const VOICE = [0.35, 0.7, 1, 0.75, 0.45, 0.8, 0.95, 0.5];
 
-function iconSvg(inset, grid = 24) {
+function iconSvg(inset, grid = 24, colors = { blue: BLUE, bg: BG }, isAdaptive = false) {
   const S = 120;
   const area = S * (1 - inset * 2);
   const cell = area / grid;
@@ -18,12 +21,16 @@ function iconSvg(inset, grid = 24) {
   const rects = orbDots(grid, { t: 0, spin: 0, fill: 0.15, light: (-3 * Math.PI) / 4 + 0.3, bands: VOICE }, 0.3)
     .map(({ i, j }) => `<rect x="${(off + i * cell).toFixed(2)}" y="${(offY + j * cell).toFixed(2)}" width="${dot.toFixed(2)}" height="${dot.toFixed(2)}"/>`)
     .join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="${BG}"/><g fill="${BLUE}">${rects}</g></svg>`;
+  if (isAdaptive) {
+    const style = `.bg{fill:${LIGHT.bg}}.orb{fill:${LIGHT.blue}}@media (prefers-color-scheme:dark){.bg{fill:${BG}}.orb{fill:${BLUE}}}`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><style>${style}</style><rect class="bg" width="${S}" height="${S}"/><g class="orb">${rects}</g></svg>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="${colors.bg}"/><g fill="${colors.blue}">${rects}</g></svg>`;
 }
 
 const regular = iconSvg(0.08);
 const maskable = iconSvg(0.18); // the maskable safe zone is the centre 80%
-writeFileSync(new URL('../public/icon.svg', import.meta.url), regular + '\n');
+writeFileSync(new URL('../public/icon.svg', import.meta.url), iconSvg(0.08, 24, undefined, true) + '\n');
 
 // require(), not import: Playwright isn't a project dependency; this finds the machine's copy.
 const { chromium } = createRequire(import.meta.url)('playwright');
