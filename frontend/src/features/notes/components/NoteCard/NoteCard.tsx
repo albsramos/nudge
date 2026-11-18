@@ -3,7 +3,7 @@ import { useNow } from '@/shared/lib/now';
 import { Badge } from '@/shared/ui/Badge/Badge';
 import { Button } from '@/shared/ui/Button/Button';
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/shared/ui/Card/Card';
-import type { Note } from '../../domain/note';
+import { isLabelRedundant, type Note } from '../../domain/note';
 import { absoluteTime } from '../../domain/time';
 import { useFocusedNoteId } from '../../hooks/useNoteParams';
 import { useDeleteNote, useRemoveReminder } from '../../hooks/useNoteActions';
@@ -65,7 +65,7 @@ export function NoteCard({ note }: NoteCardProps) {
               key={reminder.id}
               reminder={reminder}
               now={now}
-              isLabelHidden={reminder.label === note.title}
+              isLabelHidden={isLabelRedundant(reminder.label, note)}
               onRemove={() => removeReminder({ noteId: note.id, reminderId: reminder.id })}
             />
           ))}

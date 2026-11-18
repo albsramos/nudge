@@ -107,8 +107,34 @@ export function nextReminder(note: Note, now: Date): Reminder | undefined {
     .sort((a, b) => a.at.localeCompare(b.at))[0];
 }
 
+// Words that don't carry meaning in a short label, in English and Portuguese.
+const fillerWords = new Set(
+  'a an the my to of on in at for and or about me i it this that remind reminder um uma o os as de do da dos das no na em para e meu minha lembra lembrar'.split(' '),
+);
+
+function meaningfulWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length > 1 && !fillerWords.has(w));
+}
+
+/** True when a reminder's label only restates the note (most of its words are already in the title or text). */
+export function isLabelRedundant(label: string, note: Pick<Note, 'title' | 'body'>): boolean {
+  const words = meaningfulWords(label);
+  if (words.length === 0) return true;
+  const known = new Set(meaningfulWords(`${note.title} ${note.body}`));
+  // A cut-off last word ("the ho…") counts if a known word starts with it.
+  const isKnown = (w: string) => known.has(w) || [...known].some((k) => k.startsWith(w) && w.length >= 2);
+  return words.filter(isKnown).length / words.length >= 0.6;
+}
+
+/** The notification: the label when it says something the title doesn't, otherwise the title with the note's text. */
 export function notificationText(note: Note, reminder: Reminder): { title: string; body: string } {
-  return { title: reminder.label || note.title, body: reminder.label && reminder.label !== note.title ? note.title : note.body };
+  if (isLabelRedundant(reminder.label, note)) return { title: note.title, body: note.body };
+  return { title: reminder.label, body: note.title };
 }
 
 export type NoteEdits = { title: string; body: string };

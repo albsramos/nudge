@@ -13,7 +13,9 @@ const extractionSchema = z.object({
     .array(
       z.object({
         at: z.string().describe('When to notify: ISO 8601 with the user’s UTC offset, e.g. 2026-11-18T18:00:00+01:00.'),
-        label: z.string().describe('What the notification should say, e.g. "Call mom".'),
+        label: z
+          .string()
+          .describe('Empty unless the notification should say something the title doesn’t, e.g. "Leave for the dentist" on a note titled "Dentist Friday 10am".'),
       }),
     )
     .describe('Empty unless the user asks to be reminded, pinged or notified.'),
@@ -28,6 +30,8 @@ Reminders:
 - A time without a day means its next occurrence: today if still ahead, else tomorrow.
 - "Every day" or other repeats: add just the next occurrence.
 - Several distinct requests mean several reminders.
+- Leave a reminder's label empty when it would just repeat the title. Give it one only when the notification
+  needs different words, like "Leave for the dentist" an hour before "Dentist appointment".
 
 Keep the user's language. Never invent facts.`;
 

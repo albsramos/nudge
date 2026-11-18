@@ -1,4 +1,4 @@
-import { draftFromExtraction, dueReminders, editNote, filterNotes, pendingPushReminders, plainDraft, type Note, type Reminder } from './note';
+import { draftFromExtraction, dueReminders, editNote, filterNotes, isLabelRedundant, notificationText, pendingPushReminders, plainDraft, type Note, type Reminder } from './note';
 
 const now = new Date('2026-11-17T12:00:00Z');
 
@@ -110,4 +110,26 @@ test('pendingPushReminders are the queued ones on the server', () => {
     reminder({ id: 'done', delivery: 'push', isDone: true, at: '2026-11-18T12:00:00Z' }),
   ]);
   expect(pendingPushReminders(n, now).map((r) => r.id)).toEqual(['future']);
+});
+
+describe('isLabelRedundant', () => {
+  test.each([
+    ['Rebase my fx PRs', 'Rebase fx PRs', ''],
+    ['Look into the designs of the ho', 'Look into home page FX designs', ''],
+    ['Review Lucas PR about PLTCP Gateway and triggers', 'Review Lucas PR on PLTCP Gateway', 'Review Lucas PR about PLTCP Gateway and triggers'],
+    ['', 'Anything', ''],
+    ['Ligar à mãe', 'Ligar a mae sobre o fim de semana', ''],
+  ])('"%s" only restates "%s"', (label, title, body) => {
+    expect(isLabelRedundant(label, { title, body })).toBe(true);
+  });
+
+  test('a label that adds something shows', () => {
+    expect(isLabelRedundant('Leave for the dentist', { title: 'Dentist appointment', body: 'Friday at 10:00. Bring the insurance card.' })).toBe(false);
+  });
+});
+
+test('notificationText skips a label that restates the title', () => {
+  const n = note([], { title: 'Rebase fx PRs', body: '' });
+  expect(notificationText(n, reminder({ label: 'Rebase my fx PRs' }))).toEqual({ title: 'Rebase fx PRs', body: '' });
+  expect(notificationText(n, reminder({ label: 'Before standup' }))).toEqual({ title: 'Before standup', body: 'Rebase fx PRs' });
 });
