@@ -1,4 +1,4 @@
-import { draftFromExtraction, dueReminders, filterNotes, plainDraft, type Note, type Reminder } from './note';
+import { draftFromExtraction, dueReminders, editNote, filterNotes, pendingPushReminders, plainDraft, type Note, type Reminder } from './note';
 
 const now = new Date('2026-11-17T12:00:00Z');
 
@@ -82,4 +82,32 @@ test('filterNotes matches title, body and tags', () => {
   const notes = [note([], { id: '1', title: 'Dentist' }), note([], { id: '2', title: 'x', tags: ['health'] })];
   expect(filterNotes(notes, 'dent').map((n) => n.id)).toEqual(['1']);
   expect(filterNotes(notes, 'HEALTH').map((n) => n.id)).toEqual(['2']);
+});
+
+describe('editNote', () => {
+  const base = note([reminder({ id: 'a', label: 'Title' }), reminder({ id: 'b', label: 'Leave for the dentist' })], {
+    title: 'Title',
+    body: 'old',
+  });
+
+  test('changes title and body, and reminders that only repeated the old title follow it', () => {
+    const edited = editNote(base, { title: '  Dentist  ', body: ' Bring the card ' });
+    expect(edited.title).toBe('Dentist');
+    expect(edited.body).toBe('Bring the card');
+    expect(edited.reminders.map((r) => r.label)).toEqual(['Dentist', 'Leave for the dentist']);
+  });
+
+  test('an empty title falls back to the first line of the body', () => {
+    expect(editNote(base, { title: ' ', body: 'Buy milk\nand eggs' }).title).toBe('Buy milk');
+  });
+});
+
+test('pendingPushReminders are the queued ones on the server', () => {
+  const n = note([
+    reminder({ id: 'future', delivery: 'push', at: '2026-11-18T12:00:00Z' }),
+    reminder({ id: 'past', delivery: 'push', at: '2026-11-17T11:00:00Z' }),
+    reminder({ id: 'local', delivery: 'local', at: '2026-11-18T12:00:00Z' }),
+    reminder({ id: 'done', delivery: 'push', isDone: true, at: '2026-11-18T12:00:00Z' }),
+  ]);
+  expect(pendingPushReminders(n, now).map((r) => r.id)).toEqual(['future']);
 });

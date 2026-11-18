@@ -8,6 +8,7 @@ import { absoluteTime } from '../../domain/time';
 import { useFocusedNoteId } from '../../hooks/useNoteParams';
 import { useDeleteNote, useRemoveReminder } from '../../hooks/useNoteActions';
 import { AddReminderDialog } from './AddReminderDialog/AddReminderDialog';
+import { EditNoteDialog } from './EditNoteDialog/EditNoteDialog';
 import styles from './NoteCard.module.css';
 import { ReminderChip } from './ReminderChip/ReminderChip';
 
@@ -36,6 +37,7 @@ export function NoteCard({ note }: NoteCardProps) {
           {note.isAiProcessed && <Sparkles aria-label="Organised by AI" />}
         </CardDescription>
         <CardAction>
+          <EditNoteDialog note={note} />
           <AddReminderDialog noteId={note.id} defaultLabel={note.title} />
           <Button variant="ghost" size="icon" aria-label={`Delete “${note.title}”`} onClick={() => deleteNote(note)}>
             <Trash2 />

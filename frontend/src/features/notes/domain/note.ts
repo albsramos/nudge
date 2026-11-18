@@ -110,3 +110,25 @@ export function nextReminder(note: Note, now: Date): Reminder | undefined {
 export function notificationText(note: Note, reminder: Reminder): { title: string; body: string } {
   return { title: reminder.label || note.title, body: reminder.label && reminder.label !== note.title ? note.title : note.body };
 }
+
+export type NoteEdits = { title: string; body: string };
+
+/**
+ * Applies a user's edits. An empty title falls back to the body's first line. A reminder whose label was just
+ * the old title follows the new one; labels the user or AI wrote on purpose stay as they are.
+ */
+export function editNote(note: Note, edits: NoteEdits): Note {
+  const body = edits.body.trim();
+  const title = edits.title.trim() || plainDraft(body).title || note.title;
+  return {
+    ...note,
+    title,
+    body,
+    reminders: note.reminders.map((r) => (r.label === note.title ? { ...r, label: title } : r)),
+  };
+}
+
+/** Reminders the server still has to send: changing the note means re-sending them with the new text. */
+export function pendingPushReminders(note: Note, now: Date): Reminder[] {
+  return note.reminders.filter((r) => r.delivery === 'push' && !r.isDone && new Date(r.at).getTime() > now.getTime());
+}

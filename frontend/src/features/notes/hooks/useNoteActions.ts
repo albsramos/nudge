@@ -2,7 +2,22 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from '@/shared/ui/Toaster/toast';
 import { notesStore, removeNote, updateNote } from '../api/notesStore';
 import { cancel, deliver } from '../api/remindersApi';
-import type { Note } from '../domain/note';
+import { editNote as applyEdits, pendingPushReminders, type Note, type NoteEdits } from '../domain/note';
+
+async function editNote({ noteId, ...edits }: NoteEdits & { noteId: string }) {
+  const before = notesStore.get().find((n) => n.id === noteId);
+  if (!before) return;
+  const after = applyEdits(before, edits);
+  updateNote(noteId, () => after);
+
+  // The server holds each reminder's text until it's sent: swap the queued ones for the new wording.
+  for (const reminder of pendingPushReminders(after, new Date())) {
+    await cancel(reminder);
+    const { warning, ...delivery } = await deliver(after, reminder);
+    if (warning) toast.warning('Reminder is in-app only', { description: warning });
+    updateNote(noteId, (n) => ({ ...n, reminders: n.reminders.map((r) => (r.id === reminder.id ? { ...r, ...delivery } : r)) }));
+  }
+}
 
 async function deleteNote(note: Note) {
   removeNote(note.id);
@@ -40,4 +55,9 @@ export function useAddReminder() {
 export function useRemoveReminder() {
   const mutation = useMutation({ mutationFn: removeReminder });
   return { ...mutation, removeReminder: mutation.mutate };
+}
+
+export function useEditNote() {
+  const mutation = useMutation({ mutationFn: editNote });
+  return { ...mutation, editNote: mutation.mutateAsync };
 }
