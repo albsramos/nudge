@@ -1,0 +1,1 @@
+var e=class extends Error{constructor(e,t){super(e,t),this.name=`LlmError`}};export{e as t};
